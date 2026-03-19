@@ -1,0 +1,85 @@
+spring:
+  application:
+    name: circuit-breaker
+
+server:
+  port: 8080
+
+# ========================================================================
+# ACTUATOR & MONITORING - Exposición de endpoints para monitoreo en tiempo real
+# ========================================================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,circuitbreakerevents,prometheus
+  endpoint:
+    health:
+      show-details: always
+  health:
+    circuitbreakers:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# ========================================================================
+# CIRCUITO 1: RENTAS API (Consulta de Deuda Catastral)
+# ========================================================================
+# Problema real: API RENTAS tardaba 60+ segundos durante mantenimiento no-programado
+# Solución: Abrir circuito después de detectar llamadas lentas + alta tasa de error
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      rentasAPI:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        slowCallRateThreshold: 100
+        slowCallDurationThreshold: 5000ms
+        waitDurationInOpenState: 30000ms
+        permittedNumberOfCallsInHalfOpenState: 3
+        registerHealthIndicator: true
+        recordExceptions: org.springframework.web.client.ResourceAccessException
+
+# ========================================================================
+# CIRCUITO 2: AFIP API (Validación CUIT/CUIL)
+# ========================================================================
+# Problema real: AFIP falla periódicamente durante madrugadas de procesamiento masivo
+# Solución: Aceptar transacción + validar asincrónico luego
+
+      afipAPI:
+        slidingWindowSize: 5
+        failureRateThreshold: 30
+        slowCallRateThreshold: 80
+        slowCallDurationThreshold: 3000ms
+        waitDurationInOpenState: 20000ms
+        permittedNumberOfCallsInHalfOpenState: 2
+        registerHealthIndicator: true
+        recordExceptions: org.springframework.web.client.ResourceAccessException
+
+# ========================================================================
+# CIRCUITO 3: ACCOUNTING SERVICE (Procesamiento de Pagos)
+# ========================================================================
+# Problema real: Sistema contable tarda 30+ segundos durante picos
+# Solución: Encolar pagos en background para procesamiento asincrónico
+
+      accountingService:
+        slidingWindowSize: 20
+        failureRateThreshold: 40
+        slowCallRateThreshold: 70
+        slowCallDurationThreshold: 4000ms
+        waitDurationInOpenState: 45000ms
+        permittedNumberOfCallsInHalfOpenState: 3
+        registerHealthIndicator: true
+        recordExceptions: org.springframework.web.client.ResourceAccessException
+
+# ========================================================================
+# LOGGING
+# ========================================================================
+logging:
+  level:
+    root: INFO
+    ar.gov.arba: DEBUG
+    io.github.resilience4j: DEBUG
