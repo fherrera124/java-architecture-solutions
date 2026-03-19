@@ -1,0 +1,32 @@
+spring:
+  application:
+    name: emisiones
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driverClassName: org.h2.Driver
+    username: sa
+    password: password
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    defer-datasource-initialization: true
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: your-email@gmail.com
+    password: your-password
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+  batch:
+    job:
+      enabled: false  # Para evitar que se ejecute automáticamente al iniciar
+
+logging:
+  level:
+    org.springframework.batch: DEBUG
